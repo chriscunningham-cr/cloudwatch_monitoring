@@ -23,35 +23,33 @@
 
 include_recipe 'cron'
 
-install_path="#{node[:cw_mon][:home_dir]}/aws-scripts-mon-v#{node[:cw_mon][:version]}"
-zip_filepath="#{node[:cw_mon][:home_dir]}/CloudWatchMonitoringScripts-v#{node[:cw_mon][:version]}.zip"
+install_path = "#{node[:cw_mon][:home_dir]}/aws-scripts-mon-v#{node[:cw_mon][:version]}"
+zip_filepath = "#{node[:cw_mon][:home_dir]}/CloudWatchMonitoringScripts-v#{node[:cw_mon][:version]}.zip"
 
 case node[:platform_family]
-  when 'rhel'
-    %w{unzip perl-CPAN}.each do |p|
-      package p
-    end
+when 'rhel'
+  %w{unzip perl-CPAN epel-release}.each do |p|
+    package p
+  end
 
-    # %w{Test::More Bundle::LWP5_837 Bundle::LWP}
-    %w{Test::More Bundle::LWP}.each do |m|
-      execute "install Perl module #{m}" do
-        command "perl -MCPAN -e 'install #{m}' < /dev/null"
-        not_if { ::File.directory?(install_path) }
-      end
+  %w{Bundle::LWP}.each do |m|
+    execute "install Perl module #{m}" do
+      command "perl -MCPAN -e 'install #{m}' < /dev/null"
+      not_if { ::File.directory?(install_path) }
     end
+  end
 
-  when 'debian'
-
-    %w{unzip libwww-perl libcrypt-ssleay-perl}.each do |p|
-      package p do
-        action :install
-      end
+  package 'perl-DateTime'
+when 'debian'
+  %w{unzip libwww-perl libdatetime-perl}.each do |p|
+    package p do
+      action :install
     end
-
-  else
-    log "#{node[:platform_family]} is not supported" do
-      level :warn
-    end
+  end
+else
+  log "#{node[:platform_family]} is not supported" do
+    level :warn
+  end
 end
 
 group node[:cw_mon][:group] do
@@ -69,7 +67,6 @@ directory node[:cw_mon][:home_dir] do
   owner node[:cw_mon][:user]
 end
 
-
 remote_file zip_filepath do
   source node[:cw_mon][:release_url]
   owner node[:cw_mon][:user]
@@ -77,7 +74,6 @@ remote_file zip_filepath do
   mode 0755
   not_if { File.directory? install_path }
 end
-
 
 bash 'extract_aws-scripts-mon' do
   user node[:cw_mon][:user]
@@ -93,7 +89,6 @@ bash 'extract_aws-scripts-mon' do
   not_if { File.directory? install_path }
 end
 
-
 file zip_filepath do
   action :delete
 end
@@ -103,10 +98,12 @@ options = ['--from-cron'] + node[:cw_mon][:options]
 if iam_role = IAM::role
   log "IAM role available: #{iam_role}"
 else
-  log "no IAM role available. CloudWatch Monitoring scripts will use IAM user #{node[:cw_mon][:user]}" do
+  log "No IAM role available. CloudWatch Monitoring scripts will use IAM user #{node[:cw_mon][:user]}" do
     level :warn
   end
+
   vars = {}
+
   begin
     user_creds = Chef::EncryptedDataBagItem.load(node[:cw_mon][:aws_users_databag], node[:cw_mon][:user])
     vars[:access_key_id] = user_creds['access_key_id']
