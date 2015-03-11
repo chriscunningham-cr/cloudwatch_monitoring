@@ -22,34 +22,31 @@
 #
 
 include_recipe 'cron'
+include_recipe 'perl'
 
 install_path = "#{node[:cw_mon][:home_dir]}/aws-scripts-mon-v#{node[:cw_mon][:version]}"
 zip_filepath = "#{node[:cw_mon][:home_dir]}/CloudWatchMonitoringScripts-v#{node[:cw_mon][:version]}.zip"
 
+package 'unzip'
+
 case node[:platform_family]
 when 'rhel'
-  %w{unzip perl-CPAN epel-release}.each do |p|
-    package p
-  end
+  cpan_module 'Bundle::LWP6'
+  cpan_module 'Bundle::LWP'
 
-  %w{Bundle::LWP}.each do |m|
-    execute "install Perl module #{m}" do
-      command "perl -MCPAN -e 'install #{m}' < /dev/null"
-      not_if { ::File.directory?(install_path) }
+  %w{perl-libwww-perl perl-DateTime perl-Crypt-SSLeay}.each do |p|
+    package p do
+      action :install
     end
   end
-
-  package 'perl-DateTime'
 when 'debian'
-  %w{unzip libwww-perl libdatetime-perl}.each do |p|
+  %w{libwww-perl libdatetime-perl libcrypt-ssleay-perl libswitch-perl}.each do |p|
     package p do
       action :install
     end
   end
 else
-  log "#{node[:platform_family]} is not supported" do
-    level :warn
-  end
+  puts 'No support'
 end
 
 group node[:cw_mon][:group] do
