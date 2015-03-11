@@ -31,7 +31,6 @@ package 'unzip'
 
 case node[:platform_family]
 when 'rhel'
-  cpan_module 'Bundle::LWP6'
   cpan_module 'Bundle::LWP'
 
   %w{perl-libwww-perl perl-DateTime perl-Crypt-SSLeay}.each do |p|
@@ -46,7 +45,9 @@ when 'debian'
     end
   end
 else
-  puts 'No support'
+  log "#{node[:platform_family]} is not supported" do
+    level :warn
+  end
 end
 
 group node[:cw_mon][:group] do
